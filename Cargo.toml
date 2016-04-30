@@ -8,6 +8,4 @@ glium = "*"
 glium_text = "*"
 image = "*"
 time = "*"
-
-[dependencies.zpu]
-path = "../zpu"
+zpu = { git = "https://github.com/anchovieshat/ZPU.git" }
