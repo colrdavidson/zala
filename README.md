@@ -8,7 +8,7 @@ To build the project, one needs to have an up-to-date version of `rustc` and `ca
 
 ## CPU Spec
 
-The [Zala Computer Processing Unit (ZPU)](docs/cpu.md) is a 32 bit, RISC-like cpu, with a simple assembly language.
+The [Zala Computer Processing Unit (ZPU)](https://github.com/anchovieshat/ZPU/blob/master/README.md) is a 32 bit, RISC-like cpu, with a simple assembly language.
 The ZPU keeps your ship running in top shape, keeping up with even the largest demands in the midst of combat.
 
 ## Ship Hardware Interface
