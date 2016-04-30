@@ -1,0 +1,35 @@
+# CPU Quick Reference
+
+Registers [A, B, C, D, E]
+
+0 - term num | u32 val
+1 - term ascii | char
+2 - engine on/off | 1 / 0
+3 - turret rot + | u32 val
+4 - turret rot - | u32 val
+5 - turret on/off | 1 / 0
+
+NOP - (none)
+JMP - addr
+HLT - (none)
+INC - r1
+SHR - r1, val
+SHL - r1, val
+MOV - r1, val
+ADD - r1, r2
+SUB - r1, r2
+MUL - r1, r2
+DIV - r1, r2
+JE - addr
+JN - addr
+MMOV - r1, [mem]
+MSET - [mem], r1
+XOR - r1, r2
+IN - r1, r2/val
+OUT - r1, r2/val
+PUSH - r1
+POP - r1
+JZ - addr
+JG - addr
+JL - addr
+CMP - r1, r2

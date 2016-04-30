@@ -312,12 +312,24 @@ fn main() {
     let mut shift = false;
 
     let mut term_string = String::new();
+    let mut guide_string = String::new();
+
     let mut term_file = File::open("programs/hello.asm").unwrap();
+    let mut guide_file = File::open("docs/zpu_ref").unwrap();
+
     term_file.read_to_string(&mut term_string).unwrap();
+    guide_file.read_to_string(&mut guide_string).unwrap();
+
     let mut terminal = Vec::new();
+    let mut guide = Vec::new();
+
     for line in term_string.lines() {
         terminal.push(String::from(line));
     }
+    for line in guide_string.lines() {
+        guide.push(String::from(line));
+    }
+
     let mut eng_buffer = &off_engine_buffer;
     let mut tur_buffer = &off_turret_buffer;
     let mut err = zpu::assembler::assemble_program("programs/hello.asm", "programs/zpu.bin");
@@ -328,7 +340,7 @@ fn main() {
         .. Default::default()
     };
 
-    loop {
+    'main: loop {
         let mut typed = false;
         let start_time = time::precise_time_ns();
         let mut result = zpu::zpu::ZResult::new(false, None);
@@ -505,6 +517,7 @@ fn main() {
                         keyboard::Action::Up => { cy += speed; },
                         keyboard::Action::Down => { cy -= speed; },
                         keyboard::Action::Enter => { term_ui = true; },
+                        keyboard::Action::Back => { break 'main; }
                         _ => { },
                     }
                 }
@@ -662,7 +675,7 @@ fn main() {
 
 //        println!("ui: {}, collide: {}", term_ui, term_collide);
         if term_ui && term_collide {
-            let termui_uniform = uniform! {
+            let termui_left_uniform = uniform! {
                 model: [
                     [0.25, 0.0, 0.0, 0.0],
                     [0.0, 1.0, 0.0, 0.0],
@@ -671,8 +684,19 @@ fn main() {
                 ],
                 tex: term_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
             };
+            let termui_right_uniform = uniform! {
+                model: [
+                    [0.35, 0.0, 0.0, 0.0],
+                    [0.0, 1.25, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.70, 0.35, 0.0, 1.0f32],
+                ],
+                tex: term_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            };
 
-            target.draw(&termui_buffer, &indices, &ui_program, &termui_uniform, &params).unwrap();
+            target.draw(&termui_buffer, &indices, &ui_program, &termui_left_uniform, &params).unwrap();
+            target.draw(&termui_buffer, &indices, &ui_program, &termui_right_uniform, &params).unwrap();
+
             for (i, line) in terminal.iter().enumerate() {
                 let console_matrix = [
                     [0.035 * ratio, 0.0, 0.0, 0.0],
@@ -683,6 +707,18 @@ fn main() {
 
                 let console_text = glium_text::TextDisplay::new(&text_system, &font, line.as_str());
                 glium_text::draw(&console_text, &text_system, &mut target, console_matrix, (0.0, 1.0, 0.0, 1.0));
+            }
+
+            for (i, line) in guide.iter().enumerate() {
+                let console_matrix = [
+                    [0.035 * ratio, 0.0, 0.0, 0.0],
+                    [0.0, 0.035, 0.0, 0.0],
+                    [0.0, 0.0, 1.0, 0.0],
+                    [0.35, 0.95 - ((i as f32) * 0.05), 0.0, 1.0],
+                ];
+
+                let console_text = glium_text::TextDisplay::new(&text_system, &font, line.as_str());
+                glium_text::draw(&console_text, &text_system, &mut target, console_matrix, (1.0, 1.0, 1.0, 1.0));
             }
         }
 
