@@ -4,7 +4,10 @@
 
 ## Building Zala
 
-To build the project, one needs to have an up-to-date version of `rustc` and `cargo`
+To build the project, one needs to have an up-to-date version of `rustc` and `cargo`,
+and run `cargo run` in the top, project directory.
+
+To build a release version, `cargo run --release`
 
 ## CPU Spec
 
