@@ -1,6 +1,6 @@
 # CPU Specification
 
-| TIME | ADDRESS | DESCRIPTION                      |
+| TIME | ADDRESS | DESCRIPTION                      | 
 |------|---------|----------------------------------|
 |  0   | 0x0-0x7 | General Purpose (A,B,C,D,E,X,Y,Z)|
 
@@ -9,15 +9,6 @@ ENCODING:          24 bits     4    4
 	|........................|....|....| |................................|
 	 OPCODE                  REG2 REG1     OPTIONAL DATA <- 32 bits ->
 ```
-
-| PORT |        DEVICE | INPUT   |
-|------|---------------|---------|
-|  0   | term num      | u32 val |
-|  1   | term ascii    | char    |
-|  2   | engine on/off | 1 / 0   |
-|  3   | turret rot +  | u32 val |
-|  4   | turret rot -  | u32 val |
-|  5   | turret on/off | 1 / 0   |
 
 The program is contained in a large array, indexed by the PC.
 When opcodes that use the optional data int are used, the PC gets incremented twice, once to load/run the intruction, and once to load the data.
@@ -45,3 +36,12 @@ In order to calculate jmp placements manually, value and mem using operations ne
 |  0   |  0x12   | OUT     | [out], r1 | Move u32 from r1 to port [out]                                 |
 |  0   |  0x13   | PUSH    | r1        | Push u32 from r1 onto stack, incrementing SP                   |
 |  0   |  0x14   | POP     | r1        | Pop u32 from stack and put into r1, decrementing SP            |
+
+| PORT |        DEVICE | INPUT   |
+|------|---------------|---------|
+|  0   | term num      | u32 val |
+|  1   | term ascii    | char    |
+|  2   | engine on/off | 1 / 0   |
+|  3   | turret rot +  | u32 val |
+|  4   | turret rot -  | u32 val |
+|  5   | turret on/off | 1 / 0   |
