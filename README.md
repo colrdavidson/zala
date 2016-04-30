@@ -22,8 +22,6 @@ or turn on the radar shield to make the ship invisible to other ships that might
 
 Hardware to be Implemented:
 ==========================
-* [Keyboard](docs/keyboard.md)
-* Monitor
 * [Lights](docs/light.md)
 * Generator
 * Battery
