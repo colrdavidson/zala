@@ -1,8 +1,14 @@
 # CPU Specification
 
-| TIME | ADDRESS | DESCRIPTION                      | 
-|------|---------|----------------------------------|
-|  0   | 0x0-0x7 | General Purpose (A,B,C,D,E,X,Y,Z)|
+| ADDRESS | DESCRIPTION                      | 
+|---------|----------------------------------|
+|0x0-0x7  | General Purpose (A,B,C,D,E,X,Y,Z)|
+
+| FLAGS    |
+|----------|
+| cmp_flag |
+| zero_flag|
+
 
 ```
 ENCODING:          24 bits     4    4
@@ -14,28 +20,33 @@ The program is contained in a large array, indexed by the PC.
 When opcodes that use the optional data int are used, the PC gets incremented twice, once to load/run the intruction, and once to load the data.
 In order to calculate jmp placements manually, value and mem using operations need to be counted as double PC increments.
 
-| TIME | ADDRESS | OPCODES | INPUT     | DESCRIPTION                                                    |
-|------|---------|---------|-----------|----------------------------------------------------------------|
-|  1   |  0x0    | NOP     | (none)    | No Operation                                                   |
-|  0   |  0x1    | JMP     | addr      | Jump to Address                                                |
-|  1   |  0x2    | HLT     | (none)    | Halt                                                           |
-|  0   |  0x3    | MOV     | r1, val   | Load Val/R2 into R1                                            |
-|  0   |  0x4    | INC     | r1        | Increment R1                                                   |
-|  0   |  0x5    | SHR     | r1, val   | (r1 >> val) -> r1                                              |
-|  0   |  0x6    | SHL     | r1, val   | (r1 << val) -> r1                                              |
-|  0   |  0x8    | ADD     | r1, r2    | (r1 + r2)   -> r1                                              |
-|  0   |  0x9    | SUB     | r1, r2    | (r1 - r2)   -> r1                                              |
-|  0   |  0xA    | MUL     | r1, r2    | (r1 * r2)   -> r1                                              |
-|  0   |  0xB    | DIV     | r1, r2    | (r1 / r2)   -> r1                                              |
-|  0   |  0xC    | IFE     | r1, r2    | if (r1 == r2): next instruction, else, (next-next) instruction |
-|  0   |  0xD    | IFN     | r1, r2    | if (r1 != r2): next instruction, else, (next-next) instruction |
-|  0   |  0xE    | MMOV    | r1, [mem] | Move u32 in memory address into R1                             |
-|  0   |  0xF    | MSET    | [mem], r1 | Move u32 in R1 into memory address                             |
-|  0   |  0x10   | XOR     | r1, r2    | (r1 ^ r2)   -> r1                                              |
-|  0   |  0x11   | IN      | r1, [in]  | Move u32 from port [in] to r1                                  |
-|  0   |  0x12   | OUT     | [out], r1 | Move u32 from r1 to port [out]                                 |
-|  0   |  0x13   | PUSH    | r1        | Push u32 from r1 onto stack, incrementing SP                   |
-|  0   |  0x14   | POP     | r1        | Pop u32 from stack and put into r1, decrementing SP            |
+| ADDRESS | OPCODES | INPUT     | DESCRIPTION                                                    | IMPLEMENTED |
+|---------|---------|-----------|----------------------------------------------------------------|-------------|
+|  0x0    | NOP     | (none)    | No Operation                                                   | Y	       |
+|  0x1    | JMP     | addr      | Jump to Address                                                | Y           |
+|  0x2    | HLT     | (none)    | Halt                                                           | Y           |
+|  0x3    | INC     | r1        | Increment R1                                                   | Y           |
+|  0x4    | SHR     | r1, val   | (r1 >> val) -> r1                                              | Y           |
+|  0x5    | SHL     | r1, val   | (r1 << val) -> r1                                              | Y           |
+|  0x6    | MOV     | r1, val   | Load Val/R2 into R1                                            | Y           |
+|  0x7    | ADD     | r1, r2    | (r1 + r2)   -> r1                                              | Y           |
+|  0x8    | SUB     | r1, r2    | (r1 - r2)   -> r1                                              | Y           |
+|  0x9    | MUL     | r1, r2    | (r1 * r2)   -> r1                                              | Y           |
+|  0xA    | DIV     | r1, r2    | (r1 / r2)   -> r1                                              | Y           |
+|  0xB    | JE      | addr      | if (cmp_flag == 0): jmp to addr, else, continue	         | Y           |
+|  0xC    | JN      | addr      | if (cmp_flag != 0): jmp to addr, else, continue	         | Y           |
+|  0xD    | MMOV    | r1, [mem] | Move u32 in memory address into R1                             | N           |
+|  0xE    | MSET    | [mem], r1 | Move u32 in R1 into memory address                             | N           |
+|  0xF    | XOR     | r1, r2    | (r1 ^ r2)   -> r1                                              | N           |
+|  0x10   | IN      | r1, [in]  | Move u32 from port [in] to r1                                  | N           |
+|  0x11   | OUT     | [out], r1 | Move u32 from r1 to port [out]                                 | Y           |
+|  0x12   | PUSH    | r1        | Push u32 from r1 onto stack, incrementing SP                   | N           |
+|  0x13   | POP     | r1        | Pop u32 from stack and put into r1, decrementing SP            | N           |
+|  0x14   | JZ      | addr      | if (zero_flag == 1): jmp to addr, else, continue	         | Y           |
+|  0x15   | JG      | addr      | if (cmp_flag > 0): jmp to addr, else, continue	         | Y           |
+|  0x16   | JL      | addr      | if (cmp_flag < 0): jmp to addr, else, continue	         | Y           |
+|  0x17   | CMP     | r1, r2    | set cmp_flag to 1 if r1 > r2; -1 if r1 < r2; cmp_flag to 0, zero_flag to 1 if r1 == r2 | Y           |
+
 
 | PORT |        DEVICE | INPUT   |
 |------|---------------|---------|
