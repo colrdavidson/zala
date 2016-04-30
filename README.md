@@ -34,6 +34,7 @@ Hardware to be Implemented:
 * Life Support
 * Hull Breach Detector
 * Doors
+* Turret
 
 ## Interface
 
