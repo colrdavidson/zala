@@ -58,7 +58,7 @@ impl TileAtlas {
         let mut atlas = Vec::new();
         for i in 0..num_entries {
             let vert_vec = atlas_verts(i as usize, num_entries as usize);
-            let verts = glium::VertexBuffer::new(display, &vert_vec).unwrap();
+            let verts = glium::VertexBuffer::immutable(display, &vert_vec).unwrap();
             atlas.push(verts);
         }
 

@@ -97,20 +97,48 @@ impl Rect {
     }
 }
 
-struct Camera {
+#[derive(Clone, Copy)]
+struct TileCollide {
+    bl: Point,
+    tr: Point,
+}
+
+impl TileCollide {
+    fn new(x1: f32, y1: f32) -> TileCollide {
+        TileCollide {
+            bl: Point::new(x1 - 0.5, y1 - 0.5),
+            tr: Point::new(x1 + 0.5, y1 + 0.5),
+        }
+    }
+
+    fn partial_scale_new(x1: f32, y1: f32, width: f32, height: f32) -> TileCollide {
+        TileCollide {
+            bl: Point::new(x1 - 0.5, y1 - 0.5),
+            tr: Point::new(x1 + 0.5 + width, y1 + 0.5 + height),
+        }
+    }
+
+    fn collides(&self, x: f32, y: f32) -> bool {
+        if x >= self.bl.x && x <= self.tr.x && y >= self.bl.y && y <= self.tr.y {
+            return true;
+        }
+        return false;
+    }
+}
+
+struct Entity {
     pos: Point,
     vel: Point,
 }
 
-impl Camera {
-    fn new(x: f32, y: f32) -> Camera {
-        Camera {
+impl Entity {
+    fn new(x: f32, y: f32) -> Entity {
+        Entity {
             pos: Point::new(x, y),
             vel: Point::new(0.0, 0.0),
         }
     }
 }
-
 
 fn main() {
     let (width, height) = (640, 480);
@@ -224,6 +252,15 @@ fn main() {
 
     let mut inputs = Inputs::new();
 
+    let tile_gap = 2.0;
+
+    let turret_rect = TileCollide::new(1.0, 1.0);
+    let term_rect = TileCollide::new(3.0, 3.0);
+    let eng_rect = TileCollide::new(5.0, 3.0);
+    let chair_rect = TileCollide::new(7.0, 3.0);
+
+    let mut collidables = vec![term_rect, turret_rect, eng_rect, chair_rect];
+
     let mut map_str = String::new();
     File::open("assets/map").unwrap().read_to_string(&mut map_str).unwrap();
     let size = map_str.lines().nth(0).unwrap();
@@ -241,16 +278,28 @@ fn main() {
         map.push(val);
     }
 
-    let mut camera = Camera::new(10.0, 5.0);
+    for x in 0..map_width {
+        for y in 0..map_height {
+            let idx = y * map_width + x;
+            match map[idx as usize] {
+                5 => collidables.push(TileCollide::new(x as f32, y as f32)),
+                6 => collidables.push(TileCollide::partial_scale_new(x as f32, y as f32, -0.6, 0.0)),
+                7 => collidables.push(TileCollide::new(x as f32, y as f32)),
+                13 => collidables.push(TileCollide::partial_scale_new(x as f32, y as f32, 0.0, -0.6)),
+                15 => collidables.push(TileCollide::partial_scale_new(x as f32, (y as f32) + 0.6, 0.0, -0.5)),
+                21 => collidables.push(TileCollide::new(x as f32, y as f32)),
+                22 => collidables.push(TileCollide::partial_scale_new((x as f32) + 0.6, y as f32, -0.5, 0.0)),
+                23 => collidables.push(TileCollide::new(x as f32, y as f32)),
+                _ => (),
+            }
+        }
+    }
 
-    let term_rect = Rect::new(5.0, 5.0, 7.0, 7.0);
-    let turret_rect = Rect::new(1.0, 1.0, 3.0, 3.0);
-
-    let collidables = vec![term_rect, turret_rect];
+    let mut camera = Entity::new(10.0, 5.0);
 
     let mut dt = 0.0;
     let mut acc_time = 0.0;
-    let speed = 0.2;
+    let speed = 0.125;
 
     let mut collided = false;
     let mut term_collide = false;
@@ -287,14 +336,19 @@ fn main() {
         .. Default::default()
     };
 
+    let mut player = Entity::new(1.0, 5.0);
+
     'main: loop {
-        let mut typed = false;
         let start_time = time::precise_time_ns();
+
+        let mut typed = false;
         let mut result = zpu::zpu::ZResult::new(false, None);
+
         if acc_time > 5.0 {
             result = zpu.step();
             acc_time = 0.0;
         }
+
         for event in display.poll_events() {
             match event {
                 glium::glutin::Event::Closed => return,
@@ -399,6 +453,11 @@ fn main() {
                                     ']' => '}',
                                     ';' => ':',
                                     '\'' => '\"',
+                                    ',' => '<',
+                                    '.' => '>',
+                                    '/' => '?',
+                                    '-' => '_',
+                                    '=' => '+',
                                     _ => char_to_add.to_uppercase().next().unwrap(),
                                 };
                                 term_text.push(print_char);
@@ -452,13 +511,10 @@ fn main() {
 
         let mut cy = 0.0;
         let mut cx = 0.0;
-        let mut turret_inputs = Vec::new();
         if inputs.has_update() && !term_ui {
             for key in inputs.keys.iter() {
                 if *key.1 == keyboard::KeyState::Pressed {
                     match *key.0 {
-                        keyboard::Action::RotateLeft => { turret_inputs.push(key.0); },
-                        keyboard::Action::RotateRight => { turret_inputs.push(key.0); },
                         keyboard::Action::Left => { cx -= speed; },
                         keyboard::Action::Right => { cx += speed; },
                         keyboard::Action::Up => { cy += speed; },
@@ -473,11 +529,11 @@ fn main() {
 
         let friction = -0.4;
 
-        let x_acc = friction * camera.vel.x + cx;
-        let y_acc = friction * camera.vel.y + cy;
+        let x_acc = friction * player.vel.x + cx;
+        let y_acc = friction * player.vel.y + cy;
 
-        let tmpx = (0.5 * x_acc * dt * dt) + camera.vel.x * dt + camera.pos.x;
-        let tmpy = (0.5 * y_acc * dt * dt) + camera.vel.y * dt + camera.pos.y;
+        let tmpx = (0.5 * x_acc * dt * dt) + player.vel.x * dt + player.pos.x;
+        let tmpy = (0.5 * y_acc * dt * dt) + player.vel.y * dt + player.pos.y;
 
         for (i, item) in collidables.iter().enumerate() {
             if item.collides(tmpx, tmpy) {
@@ -493,15 +549,18 @@ fn main() {
         }
 
         if !collided {
-            camera.pos.x = tmpx;
-            camera.pos.y = tmpy;
-            camera.vel.x = (x_acc * dt) + camera.vel.x;
-            camera.vel.y = (y_acc * dt) + camera.vel.y;
+            player.pos.x = tmpx;
+            player.pos.y = tmpy;
+            player.vel.x = (x_acc * dt) + player.vel.x;
+            player.vel.y = (y_acc * dt) + player.vel.y;
         } else {
             collided = false;
-            camera.vel.x = 0.0;
-            camera.vel.y = 0.0;
+            player.vel.x = -player.vel.x * 0.20;
+            player.vel.y = -player.vel.y * 0.20;
         }
+
+        camera.pos.x = player.pos.x * 2.0;
+        camera.pos.y = player.pos.y * 2.0;
 
 		let mut target = display.draw();
 		target.clear_color(0.0, 0.0, 0.0, 1.0);
@@ -513,7 +572,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [turret_rect.bl.x * 2.0, turret_rect.bl.y * 2.0, 0.0, 1.0f32],
+                [1.0 * tile_gap, 1.0 * tile_gap, 0.0, 1.0f32],
             ],
     		view: view,
             perspective: perspective,
@@ -527,7 +586,7 @@ fn main() {
                         [1.0, 0.0, 0.0, 0.0],
                         [0.0, 1.0, 0.0, 0.0],
                         [0.0, 0.0, 1.0, 0.0],
-                        [(x as f32) * 2.0, (y as f32) * 2.0, 0.0, 1.0f32],
+                        [(x as f32) * tile_gap, (y as f32) * tile_gap, 0.0, 1.0f32],
                     ],
                     view: view,
                     perspective: perspective,
@@ -543,23 +602,12 @@ fn main() {
             }
         }
 
-        for key in turret_inputs {
-            match *key {
-                keyboard::Action::RotateLeft => { rot -= 0.02; },
-                keyboard::Action::RotateRight => { rot += 0.02; },
-                keyboard::Action::Space => {
-                    tur_id = on_turret_id;
-                },
-                _ => { },
-            }
-        }
-
         let turret_uniforms = uniform! {
             model: [
                 [rot.sin(), rot.cos(), 0.0, 0.0],
                 [-rot.cos(), rot.sin(), 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [turret_rect.bl.x * 2.0, turret_rect.bl.y * 2.0, 0.0, 1.0f32],
+                [1.0 * tile_gap, 1.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -571,7 +619,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [3.0 * 2.0, 3.0 * 2.0, 0.0, 1.0f32],
+                [3.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -583,7 +631,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [5.0 * 2.0, 3.0 * 2.0, 0.0, 1.0f32],
+                [5.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -595,7 +643,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [7.0 * 2.0, 3.0 * 2.0, 0.0, 1.0f32],
+                [7.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -607,7 +655,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [camera.pos.x, camera.pos.y, 0.0, 1.0f32],
+                [player.pos.x * 2.0, player.pos.y * 2.0, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
