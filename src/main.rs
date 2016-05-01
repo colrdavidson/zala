@@ -7,6 +7,7 @@ extern crate zpu;
 
 pub mod vert;
 pub mod keyboard;
+pub mod tile;
 
 use std::io::{Write, Read};
 use std::fs::File;
@@ -17,6 +18,7 @@ use glium::{DisplayBuild, Surface};
 use glium::glutin;
 
 use keyboard::Inputs;
+use tile::TileAtlas;
 
 #[derive(Copy, Clone)]
 struct Vert {
@@ -56,32 +58,6 @@ fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f3
 		[s[2], u[2], f[2], 0.0],
 		[p[0], p[1], p[2], 1.0],
 	]
-}
-
-fn atlas_verts(entry: usize, sheet_entries: usize) -> Vec<Vert> {
-    let num_entries = sheet_entries;
-    let col_num = (num_entries as f32).sqrt();
-    let row_num = (num_entries as f32).sqrt();
-
-    let scalar = 1.0 / ((num_entries as f32) / col_num);
-
-    let base_y = entry % (num_entries / (col_num as usize));
-    let base_x = entry / (num_entries / (row_num as usize));
-    let base_x = (base_x as f32) * scalar;
-    let base_y = (base_y as f32) * scalar;
-
-    let bottom_left =  [base_x, base_y];
-    let bottom_right = [base_x + scalar, base_y];
-    let top_left = 	   [base_x, base_y + scalar];
-    let top_right =	   [base_x + scalar, base_y + scalar];
-
-    let vert1 = Vert { position: [-1.0, -1.0], tex_coords: bottom_left };
-    let vert2 = Vert { position: [-1.0,  1.0], tex_coords: top_left };
-    let vert3 = Vert { position: [ 1.0, -1.0], tex_coords: bottom_right };
-    let vert4 = Vert { position: [ 1.0, -1.0], tex_coords: bottom_right };
-    let vert5 = Vert { position: [-1.0,  1.0], tex_coords: top_left };
-    let vert6 = Vert { position: [ 1.0,  1.0], tex_coords: top_right };
-    vec![vert1, vert2, vert3, vert4, vert5, vert6]
 }
 
 #[derive(Clone, Copy)]
@@ -144,11 +120,6 @@ fn main() {
         .with_title(format!("Zala"))
         .with_vsync()
         .build_glium().unwrap();
-
-    let atlas_img = image::load(Cursor::new(&include_bytes!("../assets/atlas.png")[..]), image::PNG).unwrap().to_rgba();
-	let atlas_dims = atlas_img.dimensions();
-	let atlas_img = glium::texture::RawImage2d::from_raw_rgba_reversed(atlas_img.into_raw(), atlas_dims);
-	let atlas_tex = glium::texture::SrgbTexture2d::new(&display, atlas_img).unwrap();
 
     let term_img = image::load(Cursor::new(&include_bytes!("../assets/term.png")[..]), image::PNG).unwrap().to_rgba();
     let term_dims = term_img.dimensions();
@@ -232,53 +203,21 @@ fn main() {
     let verts = [vert1, vert2, vert3, vert4, vert5, vert6];
     let termui_buffer = glium::VertexBuffer::immutable(&display, &verts).unwrap();
 
-    let term = atlas_verts(39, 64);
-    let player = atlas_verts(11, 64);
+    let tile_atlas = TileAtlas::new(&display, "assets/atlas.png", 64);
 
-    let top_wall = atlas_verts(15, 64);
-    let left_wall = atlas_verts(6, 64);
-    let bl_corner = atlas_verts(5, 64);
-    let br_corner = atlas_verts(21, 64);
-    let tl_corner = atlas_verts(7, 64);
-    let tr_corner = atlas_verts(23, 64);
-    let right_wall = atlas_verts(22, 64);
-    let bot_wall = atlas_verts(13, 64);
-    let floor = atlas_verts(14, 64);
+    let term_id = 39;
+    let chair_id = 38;
+    let player_id = 11;
 
-    let on_engine = atlas_verts(3, 64);
-    let off_engine = atlas_verts(4, 64);
+    let on_engine_id = 3;
+    let off_engine_id = 4;
 
-    let on_turret = atlas_verts(12, 64);
-    let off_turret = atlas_verts(20, 64);
-    let turret_base = atlas_verts(28, 64);
+    let on_turret_id = 12;
+    let off_turret_id = 20;
+    let turret_base_id = 28;
 
-    let door_closed = atlas_verts(29, 64);
-    let door_open = atlas_verts(30, 64);
-
-    let term_buffer = glium::VertexBuffer::new(&display, &term).unwrap();
-    let player_buffer = glium::VertexBuffer::new(&display, &player).unwrap();
-
-    let top_wall_buffer = glium::VertexBuffer::new(&display, &top_wall).unwrap();
-    let left_wall_buffer = glium::VertexBuffer::new(&display, &left_wall).unwrap();
-    let right_wall_buffer = glium::VertexBuffer::new(&display, &right_wall).unwrap();
-    let bot_wall_buffer = glium::VertexBuffer::new(&display, &bot_wall).unwrap();
-
-    let bl_corner_buffer = glium::VertexBuffer::new(&display, &bl_corner).unwrap();
-    let br_corner_buffer = glium::VertexBuffer::new(&display, &br_corner).unwrap();
-    let tl_corner_buffer = glium::VertexBuffer::new(&display, &tl_corner).unwrap();
-    let tr_corner_buffer = glium::VertexBuffer::new(&display, &tr_corner).unwrap();
-
-    let floor_buffer = glium::VertexBuffer::new(&display, &floor).unwrap();
-
-    let on_engine_buffer = glium::VertexBuffer::new(&display, &on_engine).unwrap();
-    let off_engine_buffer = glium::VertexBuffer::new(&display, &off_engine).unwrap();
-
-    let on_turret_buffer = glium::VertexBuffer::new(&display, &on_turret).unwrap();
-    let off_turret_buffer = glium::VertexBuffer::new(&display, &off_turret).unwrap();
-    let turret_base_buffer = glium::VertexBuffer::new(&display, &turret_base).unwrap();
-
-    let door_open_buffer = glium::VertexBuffer::new(&display, &door_open).unwrap();
-    let door_closed_buffer = glium::VertexBuffer::new(&display, &door_closed).unwrap();
+//    let door_closed_id = 29;
+//    let door_open_id = 30;
 
     let zero = f32::consts::PI / 2.0;
     let mut rot = zero;
@@ -287,6 +226,14 @@ fn main() {
 
     let mut map_str = String::new();
     File::open("assets/map").unwrap().read_to_string(&mut map_str).unwrap();
+    let size = map_str.lines().nth(0).unwrap();
+    let size_parts: Vec<&str> = size.split_whitespace().collect();
+
+    let map_width: usize = size_parts[0].parse().unwrap();
+    let map_height: usize = size_parts[1].parse().unwrap();
+
+    let map_str_v: Vec<&str> = map_str.splitn(2, "\n").collect();
+    let map_str = map_str_v[1];
     let map_strs: Vec<&str> = map_str.split_whitespace().collect();
     let mut map = Vec::new();
     for n in map_strs.iter() {
@@ -330,8 +277,8 @@ fn main() {
         guide.push(String::from(line));
     }
 
-    let mut eng_buffer = &off_engine_buffer;
-    let mut tur_buffer = &off_turret_buffer;
+    let mut eng_id = off_engine_id;
+    let mut tur_id = off_turret_id;
     let mut err = zpu::assembler::assemble_program("programs/hello.asm", "programs/zpu.bin");
     let mut zpu = zpu::zpu::ZPU::new("programs/zpu.bin");
 
@@ -481,9 +428,9 @@ fn main() {
                 terminal.push(String::from(format!(";{}", output.data)));
             } else if output.port == 2 {
                 if output.data > 0 {
-                    eng_buffer = &on_engine_buffer;
+                    eng_id = on_engine_id;
                 } else {
-                    eng_buffer = &off_engine_buffer;
+                    eng_id = off_engine_id;
                 }
             } else if output.port == 3 {
                 rot = zero + (output.data as f32) / 10.0;
@@ -491,9 +438,9 @@ fn main() {
                 rot = zero - ((output.data as f32) / 10.0);
             } else if output.port == 5 {
                 if output.data > 0 {
-                    tur_buffer = &on_turret_buffer;
+                    tur_id = on_turret_id;
                 } else {
-                    tur_buffer = &off_turret_buffer;
+                    tur_id = off_turret_id;
                 }
             }
         }
@@ -570,13 +517,11 @@ fn main() {
             ],
     		view: view,
             perspective: perspective,
-            tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
-        let width = 11;
-        let height = 17;
-        for y in 0..height {
-            for x in 0..width {
+        for y in 0..map_height {
+            for x in 0..map_width {
                 let wall_uniform = uniform! {
                     model: [
                         [1.0, 0.0, 0.0, 0.0],
@@ -586,23 +531,14 @@ fn main() {
                     ],
                     view: view,
                     perspective: perspective,
-                    tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                    tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
                 };
 
-                let idx = y * width + x;
-                match map[idx] {
-                    5 => target.draw(&tl_corner_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    6 => target.draw(&left_wall_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    7 => target.draw(&bl_corner_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    13 => target.draw(&top_wall_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    14 => target.draw(&floor_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    15 => target.draw(&bot_wall_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    21 => target.draw(&tr_corner_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    22 => target.draw(&right_wall_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    23 => target.draw(&br_corner_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    29 => target.draw(&door_closed_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    30 => target.draw(&door_open_buffer, &indices, &game_program, &wall_uniform, &params).unwrap(),
-                    _ => (),
+                let idx = y * map_width + x;
+                let tile = tile_atlas.atlas.get(map[idx] as usize);
+                if tile.is_some() {
+                    let tile = tile.unwrap();
+                    target.draw(tile, &indices, &game_program, &wall_uniform, &params).unwrap();
                 }
             }
         }
@@ -612,7 +548,7 @@ fn main() {
                 keyboard::Action::RotateLeft => { rot -= 0.02; },
                 keyboard::Action::RotateRight => { rot += 0.02; },
                 keyboard::Action::Space => {
-                    tur_buffer = &on_turret_buffer;
+                    tur_id = on_turret_id;
                 },
                 _ => { },
             }
@@ -627,7 +563,7 @@ fn main() {
             ],
             view: view,
             perspective: perspective,
-            tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
         let term_uniform = uniform! {
@@ -639,7 +575,7 @@ fn main() {
             ],
             view: view,
             perspective: perspective,
-            tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
         let engine_uniform = uniform! {
@@ -651,7 +587,19 @@ fn main() {
             ],
             view: view,
             perspective: perspective,
-            tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+        };
+
+        let chair_uniform = uniform! {
+            model: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [7.0 * 2.0, 3.0 * 2.0, 0.0, 1.0f32],
+            ],
+            view: view,
+            perspective: perspective,
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
         let player_uniform = uniform! {
@@ -663,17 +611,26 @@ fn main() {
             ],
             view: view,
             perspective: perspective,
-            tex: atlas_tex.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
-        target.draw(&term_buffer, &indices, &game_program, &term_uniform, &params).unwrap();
+        let term_buffer = tile_atlas.atlas.get(term_id).unwrap();
+        let chair_buffer = tile_atlas.atlas.get(chair_id).unwrap();
+        let turret_base_buffer = tile_atlas.atlas.get(turret_base_id).unwrap();
 
-        target.draw(&turret_base_buffer, &indices, &game_program, &base_uniforms, &params).unwrap();
+        let player_buffer = tile_atlas.atlas.get(player_id).unwrap();
+        let eng_buffer = tile_atlas.atlas.get(eng_id).unwrap();
+        let tur_buffer = tile_atlas.atlas.get(tur_id).unwrap();
+
+        target.draw(term_buffer, &indices, &game_program, &term_uniform, &params).unwrap();
+        target.draw(chair_buffer, &indices, &game_program, &chair_uniform, &params).unwrap();
+        target.draw(turret_base_buffer, &indices, &game_program, &base_uniforms, &params).unwrap();
+
         target.draw(tur_buffer, &indices, &game_program, &turret_uniforms, &params).unwrap();
         target.draw(eng_buffer, &indices, &game_program, &engine_uniform, &params).unwrap();
-        target.draw(&player_buffer, &indices, &game_program, &player_uniform, &params).unwrap();
 
-//        println!("ui: {}, collide: {}", term_ui, term_collide);
+        target.draw(player_buffer, &indices, &game_program, &player_uniform, &params).unwrap();
+
         if term_ui && term_collide {
             let termui_left_uniform = uniform! {
                 model: [

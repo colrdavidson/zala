@@ -1,13 +1,10 @@
-mov A, 3
-mov B, 5
-mov C, 0
-mov D, 2
+mov A, 5
+mov B, 3
+mov C, 4
 
-loop:
-out D, 1
-out B, 1
-out A, C
-add C, 5
-out B, 0
-out D, 0
-JMP loop
+clock:
+out A, 1
+out B, D
+inc D
+out A, 0
+jmp clock
