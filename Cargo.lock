@@ -6,7 +6,7 @@ dependencies = [
  "glium_text 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "image 0.9.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "time 0.1.35 (registry+https://github.com/rust-lang/crates.io-index)",
- "zpu 0.1.0 (git+https://github.com/anchovieshat/ZPU.git)",
+ "zpu 0.1.0",
 ]
 
 [[package]]
@@ -711,7 +711,6 @@ dependencies = [
 [[package]]
 name = "zpu"
 version = "0.1.0"
-source = "git+https://github.com/anchovieshat/ZPU.git#93620a49537538aa308898b768ab2af478b4115d"
 dependencies = [
  "byteorder 0.5.1 (registry+https://github.com/rust-lang/crates.io-index)",
 ]

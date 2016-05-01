@@ -11,7 +11,7 @@ To build a release version, `cargo run --release`
 
 ## CPU Spec
 
-The [Zala Computer Processing Unit (ZPU)](https://github.com/anchovieshat/ZPU/blob/master/README.md) is a 32 bit, RISC-like cpu, with a simple assembly language.
+The [Zala Computer Processing Unit (ZPU)](zpu/README.md) is a 32 bit, RISC-like cpu, with a simple assembly language.
 The ZPU keeps your ship running in top shape, keeping up with even the largest demands in the midst of combat.
 
 ## Ship Hardware Interface

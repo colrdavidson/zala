@@ -10,4 +10,4 @@ out A, C
 add C, 5
 out B, 0
 out D, 0
-jmp loop
+JMP loop
