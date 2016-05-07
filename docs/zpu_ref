@@ -8,6 +8,7 @@ Registers [A, B, C, D, E]
 3 - turret rot + | u32 val
 4 - turret rot - | u32 val
 5 - turret on/off | 1 / 0
+6 - door open/closed | 0 / 1
 
 NOP - (none)
 JMP - addr

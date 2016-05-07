@@ -3,16 +3,128 @@ use std::fs::File;
 use glium;
 use image;
 use vert::Vert;
+use vert::Point;
 
-pub struct Tile {
-    pub id: u32,
+#[derive(Clone, Copy)]
+pub struct TileCollide {
+    pub bl: Point,
+    pub tr: Point,
 }
 
-impl Tile {
-    pub fn new(id: u32) -> Tile {
-        Tile {
-            id: id,
+impl TileCollide {
+    pub fn new(x1: f32, y1: f32) -> TileCollide {
+        TileCollide {
+            bl: Point::new(x1 - 0.5, y1 - 0.5),
+            tr: Point::new(x1 + 0.5, y1 + 0.5),
         }
+    }
+
+    pub fn partial_scale_new(x1: f32, y1: f32, width: f32, height: f32) -> TileCollide {
+        TileCollide {
+            bl: Point::new(x1 - 0.5, y1 - 0.5),
+            tr: Point::new(x1 + 0.5 + width, y1 + 0.5 + height),
+        }
+    }
+
+    pub fn collides(&self, x: f32, y: f32) -> bool {
+        if x >= self.bl.x && x <= self.tr.x && y >= self.bl.y && y <= self.tr.y {
+            return true;
+        }
+        return false;
+    }
+}
+
+pub struct TileState {
+    pub triggered: bool,
+    pub sprite: usize,
+    pub collision_box: TileCollide,
+}
+
+pub struct Door {
+    pub frames: Vec<usize>,
+    pub open_collide: TileCollide,
+    pub closed_collide: TileCollide,
+    pub closed: bool,
+}
+
+impl Door {
+    pub fn new(ids: Vec<usize>, x: f32, y: f32, closed: bool) -> Door {
+        Door {
+            frames: ids,
+            open_collide: TileCollide::new(-1.0, -1.0),
+            closed_collide: TileCollide::partial_scale_new(x, y + 0.6, 0.0, -0.5),
+            closed: closed,
+        }
+    }
+
+    pub fn get_state(&self) -> TileState {
+        if self.closed {
+            TileState {
+                triggered: self.closed,
+                sprite: self.frames[0],
+                collision_box: self.closed_collide,
+            }
+        } else {
+            TileState {
+                triggered: self.closed,
+                sprite: self.frames[1],
+                collision_box: self.open_collide,
+            }
+        }
+    }
+
+    pub fn open(&mut self) {
+        self.closed = false;
+    }
+
+    pub fn close(&mut self) {
+        self.closed = true;
+    }
+
+    pub fn trigger(&mut self) {
+        self.closed = !self.closed;
+    }
+}
+
+pub struct Turret {
+    pub states: [usize; 2],
+    pub base: usize,
+    pub collide: TileCollide,
+    pub on: bool,
+}
+
+impl Turret {
+    pub fn new(ids: [usize; 3], x: f32, y: f32, on: bool) -> Turret {
+        Turret {
+            states: [ids[0], ids[1]],
+            base: ids[2],
+            collide: TileCollide::new(x, y),
+            on: on,
+        }
+    }
+
+    pub fn get_state(&self) -> TileState {
+        if self.on {
+            TileState {
+                triggered: self.on,
+                sprite: self.states[0],
+                collision_box: self.collide,
+            }
+        } else {
+            TileState {
+                triggered: self.on,
+                sprite: self.states[1],
+                collision_box: self.collide,
+            }
+        }
+    }
+
+    pub fn poweron(&mut self) {
+        self.on = true;
+    }
+
+    pub fn poweroff(&mut self) {
+        self.on = false;
     }
 }
 

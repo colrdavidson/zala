@@ -8,6 +8,7 @@ extern crate zpu;
 pub mod vert;
 pub mod keyboard;
 pub mod tile;
+pub mod particle;
 
 use std::io::{Write, Read};
 use std::fs::File;
@@ -17,8 +18,11 @@ use std::f32;
 use glium::{DisplayBuild, Surface};
 use glium::glutin;
 
+use particle::Particle;
 use keyboard::Inputs;
 use tile::TileAtlas;
+use tile::TileCollide;
+use tile::Door;
 
 #[derive(Copy, Clone)]
 struct Vert {
@@ -60,82 +64,16 @@ fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f3
 	]
 }
 
-#[derive(Clone, Copy)]
-struct Point {
-    x: f32,
-    y: f32,
-}
-
-impl Point {
-    fn new(x: f32, y: f32) -> Point {
-        Point {
-            x: x,
-            y: y,
-        }
-    }
-}
-
-#[derive(Clone, Copy)]
-struct Rect {
-    bl: Point,
-    tr: Point,
-}
-
-impl Rect {
-    fn new(x1: f32, y1: f32, x2: f32, y2: f32) -> Rect {
-        Rect {
-            bl: Point::new(x1, y1),
-            tr: Point::new(x2, y2),
-        }
-    }
-
-    fn collides(&self, x: f32, y: f32) -> bool {
-        if x >= self.bl.x && x <= self.tr.x && y >= self.bl.y && y <= self.tr.y {
-            return true;
-        }
-        return false;
-    }
-}
-
-#[derive(Clone, Copy)]
-struct TileCollide {
-    bl: Point,
-    tr: Point,
-}
-
-impl TileCollide {
-    fn new(x1: f32, y1: f32) -> TileCollide {
-        TileCollide {
-            bl: Point::new(x1 - 0.5, y1 - 0.5),
-            tr: Point::new(x1 + 0.5, y1 + 0.5),
-        }
-    }
-
-    fn partial_scale_new(x1: f32, y1: f32, width: f32, height: f32) -> TileCollide {
-        TileCollide {
-            bl: Point::new(x1 - 0.5, y1 - 0.5),
-            tr: Point::new(x1 + 0.5 + width, y1 + 0.5 + height),
-        }
-    }
-
-    fn collides(&self, x: f32, y: f32) -> bool {
-        if x >= self.bl.x && x <= self.tr.x && y >= self.bl.y && y <= self.tr.y {
-            return true;
-        }
-        return false;
-    }
-}
-
 struct Entity {
-    pos: Point,
-    vel: Point,
+    pos: vert::Point,
+    vel: vert::Point,
 }
 
 impl Entity {
     fn new(x: f32, y: f32) -> Entity {
         Entity {
-            pos: Point::new(x, y),
-            vel: Point::new(0.0, 0.0),
+            pos: vert::Point::new(x, y),
+            vel: vert::Point::new(0.0, 0.0),
         }
     }
 }
@@ -192,21 +130,62 @@ fn main() {
         }
     "#;
 
-    let frag_shader_src = r#"
+    let cursor_vert_shader_src = r#"
+        #version 140
+
+        in vec2 position;
+        in vec2 tex_coords;
+        out vec4 v_color;
+
+        uniform mat4 model;
+        uniform vec4 color;
+
+        void main() {
+            v_color = color;
+            gl_Position = model * vec4(position, 0.0, 1.0);
+        }
+    "#;
+
+    let cursor_frag_shader_src = r#"
+        #version 140
+
+        in vec4 v_color;
+        out vec4 color;
+
+        void main() {
+            color = v_color;
+        }
+    "#;
+
+    let game_frag_shader_src = r#"
         #version 140
 
         in vec2 v_tex_coords;
         out vec4 color;
 
         uniform sampler2D tex;
+
         void main() {
             color = texture(tex, v_tex_coords);
-            if (color.a == 0.0) { discard; }
         }
     "#;
 
-    let game_program = glium::Program::from_source(&display, game_vert_shader_src, frag_shader_src, None).unwrap();
-    let ui_program = glium::Program::from_source(&display, ui_vert_shader_src, frag_shader_src, None).unwrap();
+    let ui_frag_shader_src = r#"
+        #version 140
+
+        in vec2 v_tex_coords;
+        out vec4 color;
+
+        uniform sampler2D tex;
+
+        void main() {
+            color = texture(tex, v_tex_coords);
+        }
+    "#;
+
+    let game_program = glium::Program::from_source(&display, game_vert_shader_src, game_frag_shader_src, None).unwrap();
+    let ui_program = glium::Program::from_source(&display, ui_vert_shader_src, ui_frag_shader_src, None).unwrap();
+    let cursor_program = glium::Program::from_source(&display, cursor_vert_shader_src, cursor_frag_shader_src, None).unwrap();
 
     let perspective = {
         let fov: f32 = 3.141592 / 3.0;
@@ -244,9 +223,6 @@ fn main() {
     let off_turret_id = 20;
     let turret_base_id = 28;
 
-//    let door_closed_id = 29;
-//    let door_open_id = 30;
-
     let zero = f32::consts::PI / 2.0;
     let mut rot = zero;
 
@@ -256,10 +232,11 @@ fn main() {
 
     let turret_rect = TileCollide::new(1.0, 1.0);
     let term_rect = TileCollide::new(3.0, 3.0);
-    let eng_rect = TileCollide::new(5.0, 3.0);
-    let chair_rect = TileCollide::new(7.0, 3.0);
+    let eng_rect = TileCollide::new(1.0, 3.0);
+    let chair_rect = TileCollide::new(5.0, 14.0);
+    let mut door = Door::new(vec![29, 30], 2.0, 4.0, true);
 
-    let mut collidables = vec![term_rect, turret_rect, eng_rect, chair_rect];
+    let mut collidables = vec![term_rect, chair_rect, door.get_state().collision_box, turret_rect, eng_rect];
 
     let mut map_str = String::new();
     File::open("assets/map").unwrap().read_to_string(&mut map_str).unwrap();
@@ -328,6 +305,7 @@ fn main() {
 
     let mut eng_id = off_engine_id;
     let mut tur_id = off_turret_id;
+
     let mut err = zpu::assembler::assemble_program("programs/hello.asm", "programs/zpu.bin");
     let mut zpu = zpu::zpu::ZPU::new("programs/zpu.bin");
 
@@ -336,7 +314,12 @@ fn main() {
         .. Default::default()
     };
 
-    let mut player = Entity::new(1.0, 5.0);
+    let mut player = Entity::new(2.0, 2.0);
+    let mut ship_power = 0.0;
+
+    let mut cur_x = terminal.last().unwrap().len();
+    let mut cur_y = terminal.len() - 1;
+    //let mut bullet = Particle::new(11, 1.0, 1.0, 0.0, 20.0);
 
     'main: loop {
         let start_time = time::precise_time_ns();
@@ -359,7 +342,7 @@ fn main() {
                     } else if key.is_some() && state == glium::glutin::ElementState::Pressed && term_ui {
                         inputs.release_keys();
                         let key = key.unwrap();
-                        let mut char_to_add = '|';
+                        let mut char_to_add = '~';
                         match key {
                             glium::glutin::VirtualKeyCode::A => char_to_add = 'a',
                             glium::glutin::VirtualKeyCode::B => char_to_add = 'b',
@@ -407,10 +390,19 @@ fn main() {
                             glium::glutin::VirtualKeyCode::LShift => { shift = true; },
                             glium::glutin::VirtualKeyCode::Space => char_to_add = ' ',
                             glium::glutin::VirtualKeyCode::Back => {
-                                if !terminal.is_empty() && terminal.last().unwrap().len() >= 1 {
-                                    terminal.last_mut().unwrap().pop();
+                                if !terminal.is_empty() && terminal[cur_y].len() >= 1 {
+                                    if cur_x == terminal[cur_y].len() {
+                                        terminal[cur_y].pop();
+                                        cur_x -= 1;
+                                    } else {
+                                        cur_x -= 1;
+                                    }
                                 } else if terminal.len() >= 2 {
-                                    terminal.pop();
+                                    if cur_y < terminal.len() {
+                                        terminal.remove(cur_y);
+                                    }
+                                    cur_y -= 1;
+                                    cur_x = terminal[cur_y].len();
                                 }
                             },
                             glium::glutin::VirtualKeyCode::Return => {
@@ -425,46 +417,64 @@ fn main() {
                                     err = zpu::assembler::assemble_program("programs/hello.asm", "programs/zpu.bin");
                                     zpu.load_program("programs/zpu.bin");
                                 } else {
-                                    terminal.push(String::new());
+                                    if terminal[cur_y].len() > cur_x {
+                                        println!("cursor: {},{}", cur_x, cur_y);
+                                    }
+                                    cur_y += 1;
+                                    cur_x = 0;
+                                    terminal.insert(cur_y, String::new());
                                 }
                             }
                             glium::glutin::VirtualKeyCode::Escape => {
                                 term_ui = false;
                                 term_collide = false;
                             },
+                            glium::glutin::VirtualKeyCode::Up => {
+                                if cur_y > 0 {
+                                    cur_y -= 1;
+                                }
+                            },
+                            glium::glutin::VirtualKeyCode::Down => {
+                                cur_y += 1;
+                            },
+                            glium::glutin::VirtualKeyCode::Left => {
+                                if cur_x > 0 {
+                                    cur_x -= 1;
+                                }
+                            },
+                            glium::glutin::VirtualKeyCode::Right => {
+                                cur_x += 1;
+                            },
                             _ => { },
                         }
 
-                        if char_to_add != '|' {
-                            let term_text = terminal.last_mut().unwrap();
-                            if shift {
-                                let print_char = match char_to_add {
-                                    '1' => '!',
-                                    '2' => '@',
-                                    '3' => '#',
-                                    '4' => '$',
-                                    '5' => '%',
-                                    '6' => '^',
-                                    '7' => '&',
-                                    '8' => '*',
-                                    '9' => '(',
-                                    '0' => ')',
-                                    '[' => '{',
-                                    ']' => '}',
-                                    ';' => ':',
-                                    '\'' => '\"',
-                                    ',' => '<',
-                                    '.' => '>',
-                                    '/' => '?',
-                                    '-' => '_',
-                                    '=' => '+',
-                                    _ => char_to_add.to_uppercase().next().unwrap(),
-                                };
-                                term_text.push(print_char);
-                            } else {
-                                term_text.push(char_to_add);
-                            }
-                            typed = true;
+                        if shift {
+                            char_to_add = match char_to_add {
+                                '1' => '!',
+                                '2' => '@',
+                                '3' => '#',
+                                '4' => '$',
+                                '5' => '%',
+                                '6' => '^',
+                                '7' => '&',
+                                '8' => '*',
+                                '9' => '(',
+                                '0' => ')',
+                                '[' => '{',
+                                ']' => '}',
+                                ';' => ':',
+                                '\'' => '\"',
+                                ',' => '<',
+                                '.' => '>',
+                                '/' => '?',
+                                '-' => '_',
+                                '=' => '+',
+                                _ => char_to_add.to_uppercase().next().unwrap(),
+                            };
+                        }
+                        if char_to_add != '~' {
+                            terminal[cur_y].push(char_to_add);
+                            cur_x += 1;
                         }
                     } else if key.is_some() && state == glium::glutin::ElementState::Released && term_ui {
                         let key = key.unwrap();
@@ -472,7 +482,6 @@ fn main() {
                             glium::glutin::VirtualKeyCode::LShift => { shift = false; },
                             _ => { },
                         }
-                        typed = true;
                     }
                 },
                 _ => (),
@@ -481,32 +490,45 @@ fn main() {
 
         if result.output.is_some() {
             let output = result.output.unwrap();
-            if output.port == 1 {
-                terminal.push(String::from(format!(";{}", (output.data as u8) as char)));
-            } else if output.port == 0 {
+            if output.port == 0 {
                 terminal.push(String::from(format!(";{}", output.data)));
+            } else if output.port == 1 {
+                terminal.push(String::from(format!(";{}", (output.data as u8) as char)));
             } else if output.port == 2 {
                 if output.data > 0 {
                     eng_id = on_engine_id;
+                    ship_power = 1.0;
                 } else {
+                    ship_power = 0.0;
                     eng_id = off_engine_id;
                 }
             } else if output.port == 3 {
-                rot = zero + (output.data as f32) / 10.0;
+                if ship_power > 0.0 && tur_id == on_turret_id {
+                    rot = zero + (output.data as f32) / 10.0;
+                }
             } else if output.port == 4 {
-                rot = zero - ((output.data as f32) / 10.0);
+                if ship_power > 0.0 && tur_id == on_turret_id {
+                    rot = zero - ((output.data as f32) / 10.0);
+                }
             } else if output.port == 5 {
-                if output.data > 0 {
+                if output.data > 0 && ship_power > 0.0 {
                     tur_id = on_turret_id;
+                    ship_power -= 0.1;
+                    //bullet.reset();
                 } else {
                     tur_id = off_turret_id;
                 }
+            } else if output.port == 6 {
+                if output.data > 0 {
+                    if ship_power > 0.0 {
+                        door.close();
+                    }
+                } else {
+                    if ship_power > 0.0 {
+                        door.open();
+                    }
+                }
             }
-        }
-
-        if !typed {
-            let term_text = terminal.last_mut().unwrap();
-            term_text.push('|');
         }
 
         let mut cy = 0.0;
@@ -527,6 +549,8 @@ fn main() {
             }
         }
 
+        //bullet.update(dt);
+
         let friction = -0.4;
 
         let x_acc = friction * player.vel.x + cx;
@@ -535,6 +559,8 @@ fn main() {
         let tmpx = (0.5 * x_acc * dt * dt) + player.vel.x * dt + player.pos.x;
         let tmpy = (0.5 * y_acc * dt * dt) + player.vel.y * dt + player.pos.y;
 
+        collidables.insert(2, door.get_state().collision_box);
+        collidables.remove(3);
         for (i, item) in collidables.iter().enumerate() {
             if item.collides(tmpx, tmpy) {
                 collided = true;
@@ -559,8 +585,8 @@ fn main() {
             player.vel.y = -player.vel.y * 0.20;
         }
 
-        camera.pos.x = player.pos.x * 2.0;
-        camera.pos.y = player.pos.y * 2.0;
+        camera.pos.x = player.pos.x * tile_gap;
+        camera.pos.y = player.pos.y * tile_gap;
 
 		let mut target = display.draw();
 		target.clear_color(0.0, 0.0, 0.0, 1.0);
@@ -602,6 +628,18 @@ fn main() {
             }
         }
 
+        let door_uniform = uniform! {
+            model: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [2.0 * tile_gap, 4.0 * tile_gap, 0.0, 1.0f32],
+            ],
+            view: view,
+            perspective: perspective,
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+        };
+
         let turret_uniforms = uniform! {
             model: [
                 [rot.sin(), rot.cos(), 0.0, 0.0],
@@ -631,7 +669,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [5.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
+                [1.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -643,7 +681,7 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [7.0 * tile_gap, 3.0 * tile_gap, 0.0, 1.0f32],
+                [5.0 * tile_gap, 14.0 * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
@@ -655,13 +693,27 @@ fn main() {
                 [1.0, 0.0, 0.0, 0.0],
                 [0.0, 1.0, 0.0, 0.0],
                 [0.0, 0.0, 1.0, 0.0],
-                [player.pos.x * 2.0, player.pos.y * 2.0, 0.0, 1.0f32],
+                [player.pos.x * tile_gap, player.pos.y * tile_gap, 0.0, 1.0f32],
             ],
             view: view,
             perspective: perspective,
             tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
 
+        /*let bullet_uniform = uniform! {
+            model: [
+                [1.0, 0.0, 0.0, 0.0],
+                [0.0, 1.0, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [bullet.c_pos.x * tile_gap, bullet.c_pos.y * tile_gap, 0.0, 1.0f32],
+            ],
+            view: view,
+            perspective: perspective,
+            tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+        };
+        let bullet_buffer = tile_atlas.atlas.get(bullet.sprite).unwrap();*/
+
+        let door_buffer = tile_atlas.atlas.get(door.get_state().sprite).unwrap();
         let term_buffer = tile_atlas.atlas.get(term_id).unwrap();
         let chair_buffer = tile_atlas.atlas.get(chair_id).unwrap();
         let turret_base_buffer = tile_atlas.atlas.get(turret_base_id).unwrap();
@@ -670,6 +722,7 @@ fn main() {
         let eng_buffer = tile_atlas.atlas.get(eng_id).unwrap();
         let tur_buffer = tile_atlas.atlas.get(tur_id).unwrap();
 
+        target.draw(door_buffer, &indices, &game_program, &door_uniform, &params).unwrap();
         target.draw(term_buffer, &indices, &game_program, &term_uniform, &params).unwrap();
         target.draw(chair_buffer, &indices, &game_program, &chair_uniform, &params).unwrap();
         target.draw(turret_base_buffer, &indices, &game_program, &base_uniforms, &params).unwrap();
@@ -677,6 +730,9 @@ fn main() {
         target.draw(tur_buffer, &indices, &game_program, &turret_uniforms, &params).unwrap();
         target.draw(eng_buffer, &indices, &game_program, &engine_uniform, &params).unwrap();
 
+        /*if bullet.render {
+            target.draw(bullet_buffer, &indices, &game_program, &bullet_uniform, &params).unwrap();
+        }*/
         target.draw(player_buffer, &indices, &game_program, &player_uniform, &params).unwrap();
 
         if term_ui && term_collide {
@@ -707,12 +763,25 @@ fn main() {
                     [0.035 * ratio, 0.0, 0.0, 0.0],
                     [0.0, 0.035, 0.0, 0.0],
                     [0.0, 0.0, 1.0, 0.0],
-                    [-1.0, 0.95 - ((i as f32) * 0.05), 0.0, 1.0],
+                    [-0.99, 0.95 - ((i as f32) * 0.05), 0.0, 1.0],
                 ];
 
                 let console_text = glium_text::TextDisplay::new(&text_system, &font, line.as_str());
                 glium_text::draw(&console_text, &text_system, &mut target, console_matrix, (0.0, 1.0, 0.0, 1.0));
             }
+
+            let cursor_buffer = &termui_buffer;
+            let cursor_uniform = uniform! {
+                model: [
+                    [0.005 * ratio, 0.0, 0.0, 0.0],
+                    [0.0, 0.0225, 0.0, 0.0],
+                    [0.0, 0.0, 0.1, 0.0],
+                    [-0.995 + ((cur_x as f32) * 0.0235), 0.96 - ((cur_y as f32) * 0.05), 0.0, 1.0f32],
+                ],
+                color: [1.0, 1.0, 0.0, 1.0f32],
+            };
+
+            target.draw(cursor_buffer, &indices, &cursor_program, &cursor_uniform, &params).unwrap();
 
             for (i, line) in guide.iter().enumerate() {
                 let console_matrix = [
@@ -725,6 +794,15 @@ fn main() {
                 let console_text = glium_text::TextDisplay::new(&text_system, &font, line.as_str());
                 glium_text::draw(&console_text, &text_system, &mut target, console_matrix, (1.0, 1.0, 1.0, 1.0));
             }
+        } else {
+            let console_matrix = [
+                [0.035 * ratio, 0.0, 0.0, 0.0],
+                [0.0, 0.035, 0.0, 0.0],
+                [0.0, 0.0, 1.0, 0.0],
+                [0.65, 0.95, 0.0, 1.0],
+            ];
+            let console_text = glium_text::TextDisplay::new(&text_system, &font, format!("Ship Power: {}", ship_power).as_str());
+            glium_text::draw(&console_text, &text_system, &mut target, console_matrix, (1.0, 1.0, 1.0, 1.0));
         }
 
         if !err.compile_err.is_empty() {
@@ -741,11 +819,6 @@ fn main() {
         }
 
         target.finish().unwrap();
-
-        if !typed {
-            let term_text = terminal.last_mut().unwrap();
-            term_text.pop();
-        }
 
         let end_time = time::precise_time_ns();
 		dt = ((end_time - start_time) as f32 / 1e6) / 60.0;
