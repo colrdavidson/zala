@@ -3,6 +3,10 @@
 This is pretty janky. I haven't really worked on this in years, and I've
 learned a ton since. It's essentially a tech demo/prototype.
 
+Glium, the core GL wrapper lib this used has been discontinued,
+and this code has *MAJOR* performance issues. This project may be rebuilt in some other language
+at some time in the future, but this particular codebase is dead.
+
 ![Terminal Test](docs/term_test.gif)
 
 ## Building Zala
