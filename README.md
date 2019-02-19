@@ -2,6 +2,9 @@
 
 ![Terminal Test](docs/term_test.gif)
 
+This is currently pretty janky. I haven't really worked on this in years, and I've
+learned a ton since. It's essentially a tech demo/prototype.
+
 ## Building Zala
 
 To build the project, one needs to have an up-to-date version of `rustc` and `cargo`,
