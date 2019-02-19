@@ -161,10 +161,12 @@ fn atlas_verts(entry: usize, sheet_entries: usize) -> Vec<Vert> {
 }
 
 impl TileAtlas {
-    pub fn new(display: &glium::backend::glutin_backend::GlutinFacade, filename: &str, num_entries: u32) -> TileAtlas {
-        let atlas_img = image::load(File::open(filename).unwrap(), image::PNG).unwrap().to_rgba();
+    pub fn new(display: &glium::backend::glutin::Display, filename: &str, num_entries: u32) -> TileAtlas {
+        let f = File::open(filename).unwrap();
+        let f = std::io::BufReader::new(f);
+        let atlas_img = image::load(f, image::PNG).unwrap().to_rgba();
     	let atlas_dims = atlas_img.dimensions();
-    	let atlas_img = glium::texture::RawImage2d::from_raw_rgba_reversed(atlas_img.into_raw(), atlas_dims);
+    	let atlas_img = glium::texture::RawImage2d::from_raw_rgba_reversed(&atlas_img.into_raw(), atlas_dims);
     	let atlas_tex = glium::texture::SrgbTexture2d::new(display, atlas_img).unwrap();
 
         let mut atlas = Vec::new();
