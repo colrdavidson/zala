@@ -70,7 +70,7 @@ impl Inputs {
     pub fn update(&mut self, key: glium::glutin::VirtualKeyCode, new_state: glium::glutin::ElementState) {
         let key = self.get(key);
         if key.is_some() {
-            let mut key = key.unwrap();
+            let key = key.unwrap();
 
             if *key.1 == KeyState::Pressed {
                 if new_state == glium::glutin::ElementState::Released {

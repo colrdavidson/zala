@@ -15,10 +15,10 @@ use std::fs::File;
 use std::io::Cursor;
 use std::f32;
 
-use glium::{DisplayBuild, Surface};
-use glium::glutin;
+use glium::{Surface};
+use glium::glutin::{self, Event, WindowEvent, KeyboardInput};
 
-use particle::Particle;
+//use particle::Particle;
 use keyboard::Inputs;
 use tile::TileAtlas;
 use tile::TileCollide;
@@ -79,17 +79,19 @@ impl Entity {
 }
 
 fn main() {
+    let mut events_loop = glutin::EventsLoop::new();
     let (width, height) = (640, 480);
     let ratio = height as f32 / width as f32;
-    let display = glutin::WindowBuilder::new()
-        .with_dimensions(width, height)
-        .with_title(format!("Zala"))
-        .with_vsync()
-        .build_glium().unwrap();
+    let display_builder = glutin::WindowBuilder::new()
+        .with_dimensions((width, height).into())
+        .with_title(format!("Zala"));
+    let context = glutin::ContextBuilder::new();
+        //.with_vsync(true);
+    let display = glium::Display::new(display_builder, context, &events_loop).unwrap();
 
     let term_img = image::load(Cursor::new(&include_bytes!("../assets/term.png")[..]), image::PNG).unwrap().to_rgba();
     let term_dims = term_img.dimensions();
-    let term_img = glium::texture::RawImage2d::from_raw_rgba_reversed(term_img.into_raw(), term_dims);
+    let term_img = glium::texture::RawImage2d::from_raw_rgba_reversed(&term_img.into_raw(), term_dims);
     let term_tex = glium::texture::SrgbTexture2d::new(&display, term_img).unwrap();
 
     let text_system = glium_text::TextSystem::new(&display);
@@ -324,7 +326,7 @@ fn main() {
     'main: loop {
         let start_time = time::precise_time_ns();
 
-        let mut typed = false;
+        //let mut typed = false;
         let mut result = zpu::zpu::ZResult::new(false, None);
 
         if acc_time > 5.0 {
@@ -332,10 +334,10 @@ fn main() {
             acc_time = 0.0;
         }
 
-        for event in display.poll_events() {
+        events_loop.poll_events(|event| {
             match event {
-                glium::glutin::Event::Closed => return,
-                glium::glutin::Event::KeyboardInput(state, _, key) => {
+                Event::WindowEvent { event: WindowEvent::CloseRequested, .. } => return,
+                Event::WindowEvent { event: WindowEvent::KeyboardInput { input: KeyboardInput { state, virtual_keycode: key, .. }, .. }, .. } => {
                     if key.is_some() && !term_ui {
                         let key = key.unwrap();
                         inputs.update(key, state);
@@ -486,7 +488,7 @@ fn main() {
                 },
                 _ => (),
             }
-        }
+        });
 
         if result.output.is_some() {
             let output = result.output.unwrap();
