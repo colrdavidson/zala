@@ -10,3 +10,5 @@
 + Ship Power Systems
 + Console Shell
 + Ship Stat Polling
++ Passing Variables Back to ZPU from Game
++ Saving Ship State Between ZPU Reloads

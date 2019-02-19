@@ -8,5 +8,6 @@ glium = "*"
 glium_text = "*"
 image = "*"
 time = "*"
+
 [dependencies.zpu]
 path = "zpu"

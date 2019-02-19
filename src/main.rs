@@ -32,6 +32,129 @@ struct Vert {
 
 implement_vertex!(Vert, position, tex_coords);
 
+fn identity() -> [[f32; 4]; 4] {
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn inv_translate(a: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    [
+        [a[0][0], a[0][1], a[0][2], a[0][3]],
+        [a[1][0], a[1][1], a[1][2], a[1][3]],
+        [a[2][0], a[2][1], a[2][2], a[2][3]],
+        [-a[3][0], -a[3][1], -a[3][2], -a[3][3]],
+    ]
+}
+
+fn translate(x: f32, y: f32, z: f32) -> [[f32; 4]; 4] {
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [x, y, z, 1.0],
+    ]
+}
+
+fn scale(x: f32, y: f32, z: f32) -> [[f32; 4]; 4] {
+    [
+        [x, 0.0, 0.0, 0.0],
+        [0.0, y, 0.0, 0.0],
+        [0.0, 0.0, z, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn negative(a: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    [
+        [-a[0][0], -a[0][1], -a[0][2], -a[0][3]],
+        [-a[1][0], -a[1][1], -a[1][2], -a[1][3]],
+        [-a[2][0], -a[2][1], -a[2][2], -a[2][3]],
+        [-a[3][0], -a[3][1], -a[3][2], -a[3][3]],
+    ]
+}
+
+fn rotate_x(angle: f32) -> [[f32; 4]; 4] {
+    [
+        [1.0, 0.0, 0.0, 0.0],
+        [0.0, angle.cos(), -angle.sin(), 0.0],
+        [0.0, angle.sin(), angle.cos(), 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn rotate_y(angle: f32) -> [[f32; 4]; 4] {
+    [
+        [angle.cos(), 0.0, angle.sin(), 0.0],
+        [0.0, 1.0, 0.0, 0.0],
+        [-angle.sin(), 0.0, angle.cos(), 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn rotate_z(angle: f32) -> [[f32; 4]; 4] {
+    [
+        [angle.cos(), -angle.sin(), 0.0, 0.0],
+        [angle.sin(), angle.cos(), 0.0, 0.0],
+        [0.0, 0.0, 1.0, 0.0],
+        [0.0, 0.0, 0.0, 1.0],
+    ]
+}
+
+fn multiply(a: [[f32; 4]; 4], b: [[f32; 4]; 4]) -> [[f32; 4]; 4] {
+    let a00 = a[0][0];
+    let a01 = a[0][1];
+    let a02 = a[0][2];
+    let a03 = a[0][3];
+
+    let a10 = a[1][0];
+    let a11 = a[1][1];
+    let a12 = a[1][2];
+    let a13 = a[1][3];
+
+    let a20 = a[2][0];
+    let a21 = a[2][1];
+    let a22 = a[2][2];
+    let a23 = a[2][3];
+
+    let a30 = a[3][0];
+    let a31 = a[3][1];
+    let a32 = a[3][2];
+    let a33 = a[3][3];
+
+    let b00 = b[0][0];
+    let b01 = b[0][1];
+    let b02 = b[0][2];
+    let b03 = b[0][3];
+
+    let b10 = b[1][0];
+    let b11 = b[1][1];
+    let b12 = b[1][2];
+    let b13 = b[1][3];
+
+    let b20 = b[2][0];
+    let b21 = b[2][1];
+    let b22 = b[2][2];
+    let b23 = b[2][3];
+
+    let b30 = b[3][0];
+    let b31 = b[3][1];
+    let b32 = b[3][2];
+    let b33 = b[3][3];
+    [
+        [a00*b00 + a01*b10 + a02*b20 + a03*b30, a00*b01 + a01*b11 + a02*b21 + a03*b31, a00*b02 + a01*b12 + a02*b22 + a03*b32, a00*b03 + a01*b13 + a02*b23 + a03*b33],
+
+        [a10*b00 + a11*b10 + a12*b20 + a13*b30, a10*b01 + a11*b11 + a12*b21 + a13*b31, a10*b02 + a11*b12 + a12*b22 + a13*b32, a10*b03 + a11*b13 + a12*b23 + a13*b33],
+
+        [a20*b00 + a21*b10 + a22*b20 + a23*b30, a20*b01 + a21*b11 + a22*b21 + a23*b31, a20*b02 + a21*b12 + a22*b22 + a23*b32, a20*b03 + a21*b13 + a22*b23 + a23*b33],
+
+        [a30*b00 + a31*b10 + a32*b20 + a33*b30, a30*b01 + a31*b11 + a32*b21 + a33*b31, a30*b02 + a31*b12 + a32*b22 + a33*b32, a30*b03 + a31*b13 + a32*b23 + a33*b33],
+    ]
+}
+
 fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f32; 4]; 4] {
 	let f = {
 		let f = direction;
@@ -66,14 +189,18 @@ fn view_matrix(position: &[f32; 3], direction: &[f32; 3], up: &[f32; 3]) -> [[f3
 
 struct Entity {
     pos: vert::Point,
-    vel: vert::Point,
+    lin_vel: vert::Point,
+    angle_vel: f32,
+    angle_pos: f32,
 }
 
 impl Entity {
     fn new(x: f32, y: f32) -> Entity {
         Entity {
             pos: vert::Point::new(x, y),
-            vel: vert::Point::new(0.0, 0.0),
+            lin_vel: vert::Point::new(0.0, 0.0),
+            angle_vel: 0.0,
+            angle_pos: 0.0,
         }
     }
 }
@@ -96,7 +223,7 @@ fn main() {
 
     let text_system = glium_text::TextSystem::new(&display);
 	let font_file = std::fs::File::open(&std::path::Path::new("assets/greenscr.ttf")).unwrap();
-	let font = glium_text::FontTexture::new(&display, font_file, 11).unwrap();
+	let font = glium_text::FontTexture::new(&display, font_file, 12).unwrap();
 
     let indices = glium::index::NoIndices(glium::index::PrimitiveType::TrianglesList);
 
@@ -212,18 +339,22 @@ fn main() {
     let verts = [vert1, vert2, vert3, vert4, vert5, vert6];
     let termui_buffer = glium::VertexBuffer::immutable(&display, &verts).unwrap();
 
-    let tile_atlas = TileAtlas::new(&display, "assets/atlas.png", 64);
+    let player_ship_ids = vec![36, 37, 44, 45];
+    let tile_atlas = TileAtlas::new(&display, "assets/atlas.png", 64, player_ship_ids);
 
     let term_id = 39;
     let chair_id = 38;
     let player_id = 11;
 
-    let on_engine_id = 3;
-    let off_engine_id = 4;
+    let on_generator_id = 3;
+    let off_generator_id = 4;
 
     let on_turret_id = 12;
     let off_turret_id = 20;
     let turret_base_id = 28;
+
+    let on_engine_id = 47;
+    let off_engine_id = 55;
 
     let zero = f32::consts::PI / 2.0;
     let mut rot = zero;
@@ -282,7 +413,10 @@ fn main() {
 
     let mut collided = false;
     let mut term_collide = false;
+    let mut chair_collide = false;
+
     let mut term_ui = false;
+    let mut ship_ui = false;
 
     let mut shift = false;
 
@@ -305,6 +439,7 @@ fn main() {
         guide.push(String::from(line));
     }
 
+    let mut gen_id = off_generator_id;
     let mut eng_id = off_engine_id;
     let mut tur_id = off_turret_id;
 
@@ -317,6 +452,7 @@ fn main() {
     };
 
     let mut player = Entity::new(2.0, 2.0);
+    let mut ship = Entity::new(0.0, 0.0);
     let mut ship_power = 0.0;
 
     let mut cur_x = terminal.last().unwrap().len();
@@ -326,7 +462,6 @@ fn main() {
     'main: loop {
         let start_time = time::precise_time_ns();
 
-        //let mut typed = false;
         let mut result = zpu::zpu::ZResult::new(false, None);
 
         if acc_time > 5.0 {
@@ -490,6 +625,10 @@ fn main() {
             }
         });
 
+        if cur_y > (terminal.len() - 1) {
+            cur_y = terminal.len() - 1;
+        }
+
         if result.output.is_some() {
             let output = result.output.unwrap();
             if output.port == 0 {
@@ -498,11 +637,11 @@ fn main() {
                 terminal.push(String::from(format!(";{}", (output.data as u8) as char)));
             } else if output.port == 2 {
                 if output.data > 0 {
-                    eng_id = on_engine_id;
+                    gen_id = on_generator_id;
                     ship_power = 1.0;
                 } else {
                     ship_power = 0.0;
-                    eng_id = off_engine_id;
+                    gen_id = off_generator_id;
                 }
             } else if output.port == 3 {
                 if ship_power > 0.0 && tur_id == on_turret_id {
@@ -535,7 +674,7 @@ fn main() {
 
         let mut cy = 0.0;
         let mut cx = 0.0;
-        if inputs.has_update() && !term_ui {
+        if inputs.has_update() && !term_ui && !ship_ui {
             for key in inputs.keys.iter() {
                 if *key.1 == keyboard::KeyState::Pressed {
                     match *key.0 {
@@ -543,7 +682,21 @@ fn main() {
                         keyboard::Action::Right => { cx += speed; },
                         keyboard::Action::Up => { cy += speed; },
                         keyboard::Action::Down => { cy -= speed; },
-                        keyboard::Action::Enter => { term_ui = true; },
+                        keyboard::Action::Enter => { term_ui = true; ship_ui = true; },
+                        keyboard::Action::Back => { break 'main; },
+                        keyboard::Action::Space => { ship_ui = true; }
+                        _ => { },
+                    }
+                }
+            }
+        } else if inputs.has_update() && ship_ui {
+            for key in inputs.keys.iter() {
+                if *key.1 == keyboard::KeyState::Pressed {
+                    match *key.0 {
+                        keyboard::Action::Left => { cx -= speed; },
+                        keyboard::Action::Right => { cx += speed; },
+                        keyboard::Action::Up => { cy += speed; },
+                        keyboard::Action::Enter => { ship_ui = true; },
                         keyboard::Action::Back => { break 'main; }
                         _ => { },
                     }
@@ -554,12 +707,10 @@ fn main() {
         //bullet.update(dt);
 
         let friction = -0.4;
-
-        let x_acc = friction * player.vel.x + cx;
-        let y_acc = friction * player.vel.y + cy;
-
-        let tmpx = (0.5 * x_acc * dt * dt) + player.vel.x * dt + player.pos.x;
-        let tmpy = (0.5 * y_acc * dt * dt) + player.vel.y * dt + player.pos.y;
+        let x_acc = friction * player.lin_vel.x + cx;
+        let tmpx = (0.5 * x_acc * dt * dt) + player.lin_vel.x * dt + player.pos.x;
+        let y_acc = friction * player.lin_vel.y + cy;
+        let tmpy = (0.5 * y_acc * dt * dt) + player.lin_vel.y * dt + player.pos.y;
 
         collidables.insert(2, door.get_state().collision_box);
         collidables.remove(3);
@@ -568,7 +719,35 @@ fn main() {
                 collided = true;
                 if i == 0 {
                     term_collide = true;
+                } else if i == 1 {
+                    chair_collide = true;
                 }
+            }
+        }
+
+        if ship_ui {
+            let rot_friction = -0.5;
+            let lin_friction = -0.1;
+
+            let angle_scalar_x = (ship.angle_pos).sin();
+            let angle_scalar_y = (ship.angle_pos).cos();
+
+            let angle_acc = rot_friction * ship.angle_vel + cx;
+            let x_acc = lin_friction * ship.lin_vel.x + (cy * angle_scalar_x);
+            let y_acc = lin_friction * ship.lin_vel.y + (cy * angle_scalar_y);
+
+            ship.angle_pos = (0.5 * angle_acc * dt * dt) + ship.angle_vel * dt + ship.angle_pos;
+            ship.angle_vel = (angle_acc * dt) + ship.angle_vel;
+
+            ship.pos.x = (0.5 * x_acc * dt * dt) + ship.lin_vel.x * dt + ship.pos.x;
+            ship.pos.y = (0.5 * y_acc * dt * dt) + ship.lin_vel.y * dt + ship.pos.y;
+            ship.lin_vel.y = (y_acc * dt) + ship.lin_vel.y;
+            ship.lin_vel.x = (x_acc * dt) + ship.lin_vel.x;
+
+            if cy != 0.0 || cx != 0.0 {
+                eng_id = on_engine_id;
+            } else {
+                eng_id = off_engine_id;
             }
         }
 
@@ -576,24 +755,52 @@ fn main() {
             term_ui = false;
         }
 
+        if !chair_collide {
+            ship_ui = false;
+        }
+
         if !collided {
             player.pos.x = tmpx;
             player.pos.y = tmpy;
-            player.vel.x = (x_acc * dt) + player.vel.x;
-            player.vel.y = (y_acc * dt) + player.vel.y;
+            player.lin_vel.x = (x_acc * dt) + player.lin_vel.x;
+            player.lin_vel.y = (y_acc * dt) + player.lin_vel.y;
         } else {
             collided = false;
-            player.vel.x = -player.vel.x * 0.20;
-            player.vel.y = -player.vel.y * 0.20;
+            player.lin_vel.x = -player.lin_vel.x * 0.20;
+            player.lin_vel.y = -player.lin_vel.y * 0.20;
         }
 
-        camera.pos.x = player.pos.x * tile_gap;
-        camera.pos.y = player.pos.y * tile_gap;
+        if ship_ui {
+            camera.pos.x = ship.pos.x * tile_gap;
+            camera.pos.y = ship.pos.y * tile_gap;
+        } else {
+            camera.pos.x = player.pos.x * tile_gap;
+            camera.pos.y = player.pos.y * tile_gap;
+        }
 
 		let mut target = display.draw();
 		target.clear_color(0.0, 0.0, 0.0, 1.0);
 
         let view = view_matrix(&[camera.pos.x, camera.pos.y, -15.0], &[0.0, 0.0, 1.0], &[0.0, 1.0, 0.0]);
+
+        for y in -5..5 {
+            for x in -5..5 {
+                let star_uniform = uniform! {
+                    model: [
+                        [0.5, 0.0, 0.0, 0.0],
+                        [0.0, 0.5, 0.0, 0.0],
+                        [0.0, 0.0, 1.0, 0.0],
+                        [(x as f32) * 3.0, (y as f32) * 3.0, 0.0, 1.0f32],
+                    ],
+                    view: view,
+                    perspective: perspective,
+                    tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                };
+
+                let star = &tile_atlas.atlas[46];
+                target.draw(star, &indices, &game_program, &star_uniform, &params).unwrap();
+            }
+        }
 
         let base_uniforms = uniform! {
             model: [
@@ -606,29 +813,6 @@ fn main() {
             perspective: perspective,
             tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
         };
-
-        for y in 0..map_height {
-            for x in 0..map_width {
-                let wall_uniform = uniform! {
-                    model: [
-                        [1.0, 0.0, 0.0, 0.0],
-                        [0.0, 1.0, 0.0, 0.0],
-                        [0.0, 0.0, 1.0, 0.0],
-                        [(x as f32) * tile_gap, (y as f32) * tile_gap, 0.0, 1.0f32],
-                    ],
-                    view: view,
-                    perspective: perspective,
-                    tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
-                };
-
-                let idx = y * map_width + x;
-                let tile = tile_atlas.atlas.get(map[idx] as usize);
-                if tile.is_some() {
-                    let tile = tile.unwrap();
-                    target.draw(tile, &indices, &game_program, &wall_uniform, &params).unwrap();
-                }
-            }
-        }
 
         let door_uniform = uniform! {
             model: [
@@ -715,28 +899,104 @@ fn main() {
         };
         let bullet_buffer = tile_atlas.atlas.get(bullet.sprite).unwrap();*/
 
-        let door_buffer = tile_atlas.atlas.get(door.get_state().sprite).unwrap();
-        let term_buffer = tile_atlas.atlas.get(term_id).unwrap();
-        let chair_buffer = tile_atlas.atlas.get(chair_id).unwrap();
-        let turret_base_buffer = tile_atlas.atlas.get(turret_base_id).unwrap();
+        if ship_ui && chair_collide {
+            let engine_buffer = tile_atlas.atlas.get(eng_id).unwrap();
+            let ship_buffer = tile_atlas.atlas.get(tile_atlas.atlas.len() - 1).unwrap();
+            let engine_gap = 0.6;
+            let engine_droop = 0.75;
 
-        let player_buffer = tile_atlas.atlas.get(player_id).unwrap();
-        let eng_buffer = tile_atlas.atlas.get(eng_id).unwrap();
-        let tur_buffer = tile_atlas.atlas.get(tur_id).unwrap();
+            let ship_central_rotation = rotate_z(ship.angle_pos);
 
-        target.draw(door_buffer, &indices, &game_program, &door_uniform, &params).unwrap();
-        target.draw(term_buffer, &indices, &game_program, &term_uniform, &params).unwrap();
-        target.draw(chair_buffer, &indices, &game_program, &chair_uniform, &params).unwrap();
-        target.draw(turret_base_buffer, &indices, &game_program, &base_uniforms, &params).unwrap();
+            let mut left_engine_rotation = rotate_z(0.0);
+            let mut right_engine_rotation = rotate_z(0.0);
 
-        target.draw(tur_buffer, &indices, &game_program, &turret_uniforms, &params).unwrap();
-        target.draw(eng_buffer, &indices, &game_program, &engine_uniform, &params).unwrap();
+            if cx > 0.0 {
+                left_engine_rotation = rotate_z(3.1416);
+                right_engine_rotation = rotate_z(0.0);
+            } else if cx < 0.0 {
+                left_engine_rotation = rotate_z(0.0);
+                right_engine_rotation = rotate_z(3.1416);
+            }
 
-        /*if bullet.render {
-            target.draw(bullet_buffer, &indices, &game_program, &bullet_uniform, &params).unwrap();
-        }*/
-        target.draw(player_buffer, &indices, &game_program, &player_uniform, &params).unwrap();
+            let ship_translate = translate(ship.pos.x * tile_gap, ship.pos.y * tile_gap, 0.0);
+            let ship_translate_and_scale = multiply(scale(2.0, 2.0, 1.0), ship_translate);
+            let left_translate = multiply(scale(0.5, 0.5, 1.0), translate(-engine_gap, -engine_droop, 0.0));
+            let right_translate = multiply(scale(0.5, 0.5, 1.0), translate(engine_gap, -engine_droop, 0.0));
 
+            let ship_model = multiply(ship_central_rotation, ship_translate_and_scale);
+            let left_engine_model = multiply(left_engine_rotation, multiply(left_translate, ship_model));
+            let right_engine_model = multiply(right_engine_rotation, multiply(right_translate, ship_model));
+
+            let left_engine_uniform = uniform! {
+                model: left_engine_model,
+                view: view,
+                perspective: perspective,
+                tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            };
+
+            let right_engine_uniform = uniform! {
+                model: right_engine_model,
+                view: view,
+                perspective: perspective,
+                tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            };
+
+            let ship_uniform = uniform! {
+                model: ship_model,
+                view: view,
+                perspective: perspective,
+                tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+            };
+
+            target.draw(ship_buffer, &indices, &game_program, &ship_uniform, &params).unwrap();
+            target.draw(engine_buffer, &indices, &game_program, &left_engine_uniform, &params).unwrap();
+            target.draw(engine_buffer, &indices, &game_program, &right_engine_uniform, &params).unwrap();
+        } else {
+            for y in 0..map_height {
+                for x in 0..map_width {
+                    let wall_uniform = uniform! {
+                        model: [
+                            [1.0, 0.0, 0.0, 0.0],
+                            [0.0, 1.0, 0.0, 0.0],
+                            [0.0, 0.0, 1.0, 0.0],
+                            [(x as f32) * tile_gap, (y as f32) * tile_gap, 0.0, 1.0f32],
+                        ],
+                        view: view,
+                        perspective: perspective,
+                        tex: tile_atlas.texture.sampled().magnify_filter(glium::uniforms::MagnifySamplerFilter::Nearest),
+                    };
+
+                    let idx = y * map_width + x;
+                    let tile = tile_atlas.atlas.get(map[idx] as usize);
+                    if tile.is_some() {
+                        let tile = tile.unwrap();
+                        target.draw(tile, &indices, &game_program, &wall_uniform, &params).unwrap();
+                    }
+                }
+            }
+
+            let door_buffer = tile_atlas.atlas.get(door.get_state().sprite).unwrap();
+            let term_buffer = tile_atlas.atlas.get(term_id).unwrap();
+            let chair_buffer = tile_atlas.atlas.get(chair_id).unwrap();
+            let turret_base_buffer = tile_atlas.atlas.get(turret_base_id).unwrap();
+
+            let player_buffer = tile_atlas.atlas.get(player_id).unwrap();
+            let eng_buffer = tile_atlas.atlas.get(gen_id).unwrap();
+            let tur_buffer = tile_atlas.atlas.get(tur_id).unwrap();
+
+            target.draw(door_buffer, &indices, &game_program, &door_uniform, &params).unwrap();
+            target.draw(term_buffer, &indices, &game_program, &term_uniform, &params).unwrap();
+            target.draw(chair_buffer, &indices, &game_program, &chair_uniform, &params).unwrap();
+            target.draw(turret_base_buffer, &indices, &game_program, &base_uniforms, &params).unwrap();
+
+            target.draw(tur_buffer, &indices, &game_program, &turret_uniforms, &params).unwrap();
+            target.draw(eng_buffer, &indices, &game_program, &engine_uniform, &params).unwrap();
+
+            /*if bullet.render {
+                target.draw(bullet_buffer, &indices, &game_program, &bullet_uniform, &params).unwrap();
+            }*/
+            target.draw(player_buffer, &indices, &game_program, &player_uniform, &params).unwrap();
+        }
         if term_ui && term_collide {
             let termui_left_uniform = uniform! {
                 model: [

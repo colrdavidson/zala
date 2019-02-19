@@ -1,5 +1,7 @@
 # Cleanup List
 
++ Properly Scaling/Resizable Game Window
+
 + Tile/Entity Structs
 + Tile/Entity Rotatation
 + Tile/Entity Animation Options
@@ -7,10 +9,8 @@
 + Tile/Entity Rendering
 + Tile/Entity Physics
 + Tile and Text Rendered to Frame Buffer
-+ Door Collision/Non-Collision
 + Stable Collision Triggers
 
-+ Console Cursor
 + Console Text Wrapping
 + Console Scrolling
 + Console Resizable?
