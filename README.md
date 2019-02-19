@@ -1,9 +1,9 @@
 # Zala
 
-![Terminal Test](docs/term_test.gif)
-
-This is currently pretty janky. I haven't really worked on this in years, and I've
+This is pretty janky. I haven't really worked on this in years, and I've
 learned a ton since. It's essentially a tech demo/prototype.
+
+![Terminal Test](docs/term_test.gif)
 
 ## Building Zala
 
